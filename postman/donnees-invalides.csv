@@ -1,0 +1,9 @@
+cas,titre,auteur,isbn,message
+API-20 Titre vide,,Victor Hugo,9780000000001,Le titre est obligatoire
+API-21 Titre composé d'espaces,   ,Victor Hugo,9780000000001,Le titre est obligatoire
+API-22 Titre de 101 caractères,TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,Victor Hugo,9780000000001,Le titre ne doit pas dépasser 100 caractères
+API-23 Auteur vide,Germinal,,9780000000001,L'auteur est obligatoire
+API-24 ISBN de 12 chiffres,Germinal,Émile Zola,978000000000,L'ISBN doit contenir exactement 13 chiffres
+API-25 ISBN de 14 chiffres,Germinal,Émile Zola,97800000000011,L'ISBN doit contenir exactement 13 chiffres
+API-26 ISBN avec une lettre,Germinal,Émile Zola,978000000000X,L'ISBN doit contenir exactement 13 chiffres
+API-27 ISBN avec des tirets,Germinal,Émile Zola,978-2-25-300422,L'ISBN doit contenir exactement 13 chiffres

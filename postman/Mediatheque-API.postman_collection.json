@@ -1,0 +1,618 @@
+{
+  "info": {
+    "name": "Médiathèque - Tests d'API",
+    "description": "Tests de l'API REST de la Médiathèque. Avant chaque requête, le script de la collection remet le jeu de données de référence (POST /api/test/reset) : chaque requête peut être lancée seule, dans n'importe quel ordre.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Remet le jeu de données de référence avant chaque requête",
+          "pm.sendRequest({ url: pm.collectionVariables.get(\"baseUrl\") + \"/api/test/reset\", method: \"POST\" });"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:5000"
+    },
+    {
+      "key": "idNouveauLivre",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "US-01 Consulter le catalogue",
+      "description": "Lecture du catalogue (US-01).",
+      "item": [
+        {
+          "name": "API-01 Consulter le catalogue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Le catalogue contient 3 livres\", () => pm.expect(pm.response.json()).to.have.lengthOf(3));",
+                  "pm.test(\"Temps de réponse inférieur à 1 seconde\", () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-02 Consulter un livre existant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", () => pm.response.to.have.status(200));",
+                  "const livre = pm.response.json();",
+                  "pm.test(\"Titre : Le Petit Prince\", () => pm.expect(livre.titre).to.eql(\"Le Petit Prince\"));",
+                  "pm.test(\"Statut : disponible\", () => pm.expect(livre.statut).to.eql(\"disponible\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "1"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-03 Consulter un livre inexistant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message : Livre introuvable\", () => pm.expect(pm.response.json().erreur).to.eql(\"Livre introuvable\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "999"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-04 Contrat d'interface (format des livres)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Chaque livre a les bons champs et les bons types\", () => {",
+                  "    pm.response.json().forEach((livre) => {",
+                  "        pm.expect(livre).to.have.all.keys(\"id\", \"titre\", \"auteur\", \"isbn\", \"emprunteur\", \"statut\");",
+                  "        pm.expect(livre.id).to.be.a(\"number\");",
+                  "        pm.expect(livre.isbn).to.match(/^\\d{13}$/);",
+                  "        pm.expect([\"disponible\", \"emprunté\"]).to.include(livre.statut);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "US-02 Ajouter un livre",
+      "description": "Ajout d'un livre (US-02).",
+      "item": [
+        {
+          "name": "API-05 Ajouter un livre valide",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 201\", () => pm.response.to.have.status(201));",
+                  "const livre = pm.response.json();",
+                  "pm.test(\"Le livre est créé disponible\", () => pm.expect(livre.statut).to.eql(\"disponible\"));",
+                  "pm.collectionVariables.set(\"idNouveauLivre\", livre.id);",
+                  "pm.sendRequest(pm.collectionVariables.get(\"baseUrl\") + \"/api/livres\", (err, res) => {",
+                  "    pm.test(\"Le catalogue contient maintenant 4 livres\", () => pm.expect(res.json()).to.have.lengthOf(4));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titre\": \"Germinal\",\n  \"auteur\": \"Émile Zola\",\n  \"isbn\": \"9782253004226\"\n}"
+            }
+          }
+        },
+        {
+          "name": "API-06 Un titre de 100 caractères est accepté",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Le titre fait 100 caractères\", () => pm.expect(pm.response.json().titre).to.have.lengthOf(100));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titre\": \"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\",\n  \"auteur\": \"Auteur\",\n  \"isbn\": \"9780000000100\"\n}"
+            }
+          }
+        },
+        {
+          "name": "API-07 Un ISBN déjà présent est refusé",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message : Un livre avec cet ISBN existe déjà\", () => pm.expect(pm.response.json().erreur).to.eql(\"Un livre avec cet ISBN existe déjà\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titre\": \"Copie\",\n  \"auteur\": \"Inconnu\",\n  \"isbn\": \"9782070408504\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "US-02 Données invalides (avec le fichier CSV)",
+      "description": "Lancer ce dossier avec le Collection Runner en choisissant le fichier donnees-invalides.csv.",
+      "item": [
+        {
+          "name": "API-20 à 27 Ajout refusé : {{cas}}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message : \" + pm.iterationData.get(\"message\"), () => pm.expect(pm.response.json().erreur).to.eql(pm.iterationData.get(\"message\")));",
+                  "pm.sendRequest(pm.collectionVariables.get(\"baseUrl\") + \"/api/livres\", (err, res) => {",
+                  "    pm.test(\"Le catalogue est inchangé (3 livres)\", () => pm.expect(res.json()).to.have.lengthOf(3));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres"
+              ]
+            },
+            "description": "Requête pilotée par les données : à lancer avec le Collection Runner et le fichier donnees-invalides.csv (une itération par ligne).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titre\": \"{{titre}}\",\n  \"auteur\": \"{{auteur}}\",\n  \"isbn\": \"{{isbn}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "US-03 Emprunter un livre",
+      "description": "Emprunt (US-03).",
+      "item": [
+        {
+          "name": "API-08 Emprunter un livre disponible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", () => pm.response.to.have.status(200));",
+                  "const livre = pm.response.json();",
+                  "pm.test(\"Statut : emprunté par Bob\", () => { pm.expect(livre.statut).to.eql(\"emprunté\"); pm.expect(livre.emprunteur).to.eql(\"Bob\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/1/emprunt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "1",
+                "emprunt"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emprunteur\": \"Bob\"\n}"
+            }
+          }
+        },
+        {
+          "name": "API-09 Un livre déjà emprunté ne peut pas être emprunté",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message : Ce livre est déjà emprunté\", () => pm.expect(pm.response.json().erreur).to.eql(\"Ce livre est déjà emprunté\"));",
+                  "pm.sendRequest(pm.collectionVariables.get(\"baseUrl\") + \"/api/livres/3\", (err, res) => {",
+                  "    pm.test(\"Le livre reste emprunté par Alice\", () => pm.expect(res.json().emprunteur).to.eql(\"Alice\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/3/emprunt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "3",
+                "emprunt"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emprunteur\": \"Bob\"\n}"
+            }
+          }
+        },
+        {
+          "name": "API-10 Le nom de l'emprunteur est obligatoire",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message : Le nom de l'emprunteur est obligatoire\", () => pm.expect(pm.response.json().erreur).to.eql(\"Le nom de l'emprunteur est obligatoire\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/1/emprunt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "1",
+                "emprunt"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emprunteur\": \" \"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "US-04 Rendre un livre",
+      "description": "Retour (US-04).",
+      "item": [
+        {
+          "name": "API-11 Rendre un livre emprunté",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Statut : disponible\", () => pm.expect(pm.response.json().statut).to.eql(\"disponible\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/3/retour",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "3",
+                "retour"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-12 Un livre disponible ne peut pas être rendu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message : Ce livre n'est pas emprunté\", () => pm.expect(pm.response.json().erreur).to.eql(\"Ce livre n'est pas emprunté\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/1/retour",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "1",
+                "retour"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "US-05 Supprimer un livre",
+      "description": "Suppression (US-05).",
+      "item": [
+        {
+          "name": "API-14 Supprimer un livre disponible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 204\", () => pm.response.to.have.status(204));",
+                  "pm.sendRequest(pm.collectionVariables.get(\"baseUrl\") + \"/api/livres/2\", (err, res) => {",
+                  "    pm.test(\"Le livre n'existe plus (404)\", () => pm.expect(res.code).to.eql(404));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "2"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "API-15 Un livre emprunté ne peut pas être supprimé",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message : Impossible de supprimer un livre emprunté\", () => pm.expect(pm.response.json().erreur).to.eql(\"Impossible de supprimer un livre emprunté\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/livres/3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "livres",
+                "3"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    }
+  ]
+}
